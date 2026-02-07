@@ -1,68 +1,111 @@
-(function(){
-const cfg = window.__CAL_CONFIG__ || { timezone: 'Europe/Prague', items: [] };
-const TZ = cfg.timezone || 'Europe/Prague';
-const grid = document.getElementById('grid');
+(function () {
+  const cfg = window.__CAL_CONFIG__ || {
+    timezone: 'Europe/Prague',
+    items: []
+  };
 
-function todayISOInTZ(){
-const parts = new Intl.DateTimeFormat('en-CA', {
-timeZone: TZ, year:'numeric', month:'2-digit', day:'2-digit'
-}).formatToParts(new Date());
-const y = parts.find(p=>p.type==='year').value;
-const m = parts.find(p=>p.type==='month').value;
-const d = parts.find(p=>p.type==='day').value;
-return `${y}-${m}-${d}`;
-}
+  const TZ = cfg.timezone || 'Europe/Prague';
+  const grid = document.getElementById('grid');
 
-function formatCzDate(iso){
-const [y,m,d] = iso.split('-').map(Number);
-const dt = new Date(Date.UTC(y, m-1, d));
-return new Intl.DateTimeFormat('cs-CZ', { timeZone: TZ, day:'numeric', month:'numeric', year:'numeric' }).format(dt);
-}
+  if (!grid) return;
 
-function isUnlocked(iso){ return iso <= todayISOInTZ(); }
+  function todayISOInTZ() {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: TZ,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(new Date());
 
-function lockBadge(){
-const span = document.createElement('div');
-span.className = 'lock-badge';
-span.innerHTML = `
-<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
-<path d="M12 2a5 5 0 00-5 5v3H6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2v-8a2 2 0 00-2-2h-1V7a5 5 0 00-5-5zm-3 8V7a3 3 0 016 0v3H9z"/>
-</svg>
-<span>Zamčeno</span>`;
-return span;
-}
+    const y = parts.find(p => p.type === 'year').value;
+    const m = parts.find(p => p.type === 'month').value;
+    const d = parts.find(p => p.type === 'day').value;
 
-function makeTile(item){
-const unlocked = isUnlocked(item.date) || item.kind === 'intro';
-const art = document.createElement('article');
-art.className = 'tile';
+    return `${y}-${m}-${d}`;
+  }
 
-const link = document.createElement('a');
-link.href = unlocked ? item.img : '#';
-if (unlocked) { link.target = '_blank'; link.rel = 'noopener'; }
-link.tabIndex = 0;
+  function formatCzDate(iso) {
+    const [y, m, d] = iso.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
 
-const thumb = document.createElement('div'); thumb.className = 'thumb';
-const img = document.createElement('img');
-img.loading = 'lazy'; img.decoding = 'async';
-img.alt = item.alt || item.title; img.src = item.img;
+    return new Intl.DateTimeFormat('cs-CZ', {
+      timeZone: TZ,
+      day: 'numeric',
+      month: 'numeric',
+      year: 'numeric'
+    }).format(dt);
+  }
 
-thumb.appendChild(img);
-if (!unlocked) thumb.appendChild(lockBadge());
+  function isUnlocked(iso) {
+    return iso <= todayISOInTZ();
+  }
 
-const cap = document.createElement('div'); cap.className = 'caption';
-const h3 = document.createElement('h3');
-h3.textContent = item.kind === 'intro' ? item.title : `${item.title} – ${formatCzDate(item.date)}`;
-const p = document.createElement('p');
-p.textContent = unlocked ? 'Odemčeno' : `Odemkne se ${formatCzDate(item.date)} v 00:00`;
+  function makeTile(item) {
+    const unlocked = item.kind === 'intro' || isUnlocked(item.date);
 
-cap.appendChild(h3); cap.appendChild(p);
-link.appendChild(thumb); link.appendChild(cap);
-art.appendChild(link);
-return art;
-}
+    const article = document.createElement('article');
+    article.className = 'tile';
+    if (!unlocked) article.classList.add('locked');
 
-function render(){ grid.innerHTML=''; cfg.items.forEach(it=>grid.appendChild(makeTile(it))); }
-render();
-setInterval(render, 60*1000);
+    const link = document.createElement('a');
+    link.href = unlocked ? item.img : '#';
+
+    if (unlocked) {
+      link.target = '_blank';
+      link.rel = 'noopener';
+    }
+
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb';
+
+    if (unlocked) {
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.src = item.img;
+      img.alt = item.alt || item.title;
+      thumb.appendChild(img);
+    } else {
+      // ❌ žádný obrázek – jen šedý blok
+      const cover = document.createElement('div');
+      cover.className = 'locked-cover';
+      cover.innerHTML = `
+        <div class="lock-icon">🔒</div>
+        <div class="lock-text">Odemkne se<br>${formatCzDate(item.date)}</div>
+      `;
+      thumb.appendChild(cover);
+    }
+
+    const caption = document.createElement('div');
+    caption.className = 'caption';
+
+    const h3 = document.createElement('h3');
+    h3.textContent =
+      item.kind === 'intro'
+        ? item.title
+        : `${item.title} – ${formatCzDate(item.date)}`;
+
+    const p = document.createElement('p');
+    p.textContent = unlocked ? 'Odemčeno' : 'Zamčeno';
+
+    caption.appendChild(h3);
+    caption.appendChild(p);
+
+    link.appendChild(thumb);
+    link.appendChild(caption);
+    article.appendChild(link);
+
+    return article;
+  }
+
+  function render() {
+    grid.innerHTML = '';
+    cfg.items.forEach(item => {
+      grid.appendChild(makeTile(item));
+    });
+  }
+
+  render();
+  setInterval(render, 60 * 1000);
 })();
+;
